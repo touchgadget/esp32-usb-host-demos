@@ -23,6 +23,7 @@
  */
 #include <usb/usb_host.h>
 #include "show_desc.hpp"
+#include "usbhhelp.hpp"
 
 //#define MIDIOUTTEST 1
 #if MIDIOUTTEST
@@ -30,12 +31,7 @@
 elapsedMillis MIDIOutTimer;
 #endif
 
-const TickType_t HOST_EVENT_TIMEOUT = 1;
-const TickType_t CLIENT_EVENT_TIMEOUT = 1;
-
-usb_host_client_handle_t Client_Handle;
-usb_device_handle_t Device_Handle;
-bool isAMIDI = false;
+bool isMIDI = false;
 bool isMIDIReady = false;
 
 const size_t MIDI_IN_BUFFERS = 8;
@@ -86,7 +82,7 @@ void check_interface_desc_MIDI(const void *p)
       (intf->bInterfaceSubClass == 3) &&
       (intf->bInterfaceProtocol == 0))
   {
-    isAMIDI = true;
+    isMIDI = true;
     ESP_LOGI("", "Claiming a MIDI device!");
     esp_err_t err = usb_host_interface_claim(Client_Handle, Device_Handle,
         intf->bInterfaceNumber, intf->bAlternateSetting);
@@ -162,11 +158,11 @@ void show_config_desc_full(const usb_config_desc_t *config_desc)
           break;
         case USB_B_DESCRIPTOR_TYPE_INTERFACE:
           show_interface_desc(p);
-          if (!isAMIDI) check_interface_desc_MIDI(p);
+          if (!isMIDI) check_interface_desc_MIDI(p);
           break;
         case USB_B_DESCRIPTOR_TYPE_ENDPOINT:
           show_endpoint_desc(p);
-          if (isAMIDI && !isMIDIReady) {
+          if (isMIDI && !isMIDIReady) {
             prepare_endpoints(p);
           }
           break;
@@ -194,81 +190,14 @@ void show_config_desc_full(const usb_config_desc_t *config_desc)
   }
 }
 
-void _client_event_callback(const usb_host_client_event_msg_t *event_msg, void *arg)
-{
-  esp_err_t err;
-  switch (event_msg->event)
-  {
-    /**< A new device has been enumerated and added to the USB Host Library */
-    case USB_HOST_CLIENT_EVENT_NEW_DEV:
-      ESP_LOGI("", "New device address: %d", event_msg->new_dev.address);
-      err = usb_host_device_open(Client_Handle, event_msg->new_dev.address, &Device_Handle);
-      if (err != ESP_OK) ESP_LOGI("", "usb_host_device_open: %x", err);
-
-      usb_device_info_t dev_info;
-      err = usb_host_device_info(Device_Handle, &dev_info);
-      if (err != ESP_OK) ESP_LOGI("", "usb_host_device_info: %x", err);
-      ESP_LOGI("", "speed: %d dev_addr %d vMaxPacketSize0 %d bConfigurationValue %d",
-          dev_info.speed, dev_info.dev_addr, dev_info.bMaxPacketSize0,
-          dev_info.bConfigurationValue);
-
-      const usb_device_desc_t *dev_desc;
-      err = usb_host_get_device_descriptor(Device_Handle, &dev_desc);
-      if (err != ESP_OK) ESP_LOGI("", "usb_host_get_device_desc: %x", err);
-      // USB MIDI
-      if ((dev_desc->bDeviceClass == USB_CLASS_AUDIO) &&
-          (dev_desc->bDeviceSubClass == 3) &&
-          (dev_desc->bDeviceProtocol == 0)) {
-        ESP_LOGI("", "Found a MIDI device!");
-      }
-
-      const usb_config_desc_t *config_desc;
-      err = usb_host_get_active_config_descriptor(Device_Handle, &config_desc);
-      if (err != ESP_OK) ESP_LOGI("", "usb_host_get_config_desc: %x", err);
-      show_config_desc_full(config_desc);
-      break;
-    /**< A device opened by the client is now gone */
-    case USB_HOST_CLIENT_EVENT_DEV_GONE:
-      ESP_LOGI("", "Device Gone handle: %p", event_msg->dev_gone.dev_hdl);
-      break;
-    default:
-      ESP_LOGI("", "Unknown value %d", event_msg->event);
-      break;
-  }
-}
-
 void setup()
 {
-  const usb_host_config_t config = {
-    .intr_flags = ESP_INTR_FLAG_LEVEL1,
-  };
-  esp_err_t err = usb_host_install(&config);
-  ESP_LOGI("", "usb_host_install: %x", err);
-
-  usb_host_install(&config);
-  const usb_host_client_config_t client_config = {
-    .client_event_callback = _client_event_callback,
-    .callback_arg = Client_Handle,
-    .max_num_event_msg = 5
-  };
-  err = usb_host_client_register(&client_config, &Client_Handle);
-  ESP_LOGI("", "usb_host_client_register: %x", err);
+  usbh_setup(show_config_desc_full);
 }
 
 void loop()
 {
-  uint32_t event_flags;
-  bool done = false;
-
-  esp_err_t err = usb_host_lib_handle_events(HOST_EVENT_TIMEOUT, &event_flags);
-  if (ESP_ERR_TIMEOUT != err) {
-    ESP_LOGI("", "usb_host_list_handle_events: %x flags: %x", err, event_flags);
-  }
-
-  err = usb_host_client_handle_events(Client_Handle, CLIENT_EVENT_TIMEOUT);
-  if ((err != ESP_OK) && (err != ESP_ERR_TIMEOUT)) {
-    ESP_LOGI("", "usb_host_client_handle_events: %x", err);
-  }
+  usbh_task();
 
 #ifdef MIDIOUTTEST
   if (isMIDIReady && (MIDIOutTimer > 1000)) {

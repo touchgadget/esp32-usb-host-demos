@@ -24,12 +24,7 @@
 
 #include <usb/usb_host.h>
 #include "show_desc.hpp"
-
-const TickType_t HOST_EVENT_TIMEOUT = 1;
-const TickType_t CLIENT_EVENT_TIMEOUT = 1;
-
-usb_host_client_handle_t Client_Handle;
-usb_device_handle_t Device_Handle;
+#include "usbhhelp.hpp"
 
 void show_config_desc_full(const usb_config_desc_t *config_desc)
 {
@@ -167,73 +162,12 @@ void show_config_desc_full(const usb_config_desc_t *config_desc)
   }
 }
 
-void _client_event_callback(const usb_host_client_event_msg_t *event_msg, void *arg)
-{
-  esp_err_t err;
-  switch (event_msg->event)
-  {
-    /**< A new device has been enumerated and added to the USB Host Library */
-    case USB_HOST_CLIENT_EVENT_NEW_DEV:
-      ESP_LOGI("", "New device address: %d", event_msg->new_dev.address);
-      err = usb_host_device_open(Client_Handle, event_msg->new_dev.address, &Device_Handle);
-      if (err != ESP_OK) ESP_LOGI("", "usb_host_device_open: %x", err);
-
-      usb_device_info_t dev_info;
-      err = usb_host_device_info(Device_Handle, &dev_info);
-      if (err != ESP_OK) ESP_LOGI("", "usb_host_device_info: %x", err);
-      ESP_LOGI("", "speed: %d dev_addr %d vMaxPacketSize0 %d bConfigurationValue %d",
-          dev_info.speed, dev_info.dev_addr, dev_info.bMaxPacketSize0,
-          dev_info.bConfigurationValue);
-
-      const usb_device_desc_t *dev_desc;
-      err = usb_host_get_device_descriptor(Device_Handle, &dev_desc);
-      if (err != ESP_OK) ESP_LOGI("", "usb_host_get_device_desc: %x", err);
-      show_dev_desc(dev_desc);
-
-      const usb_config_desc_t *config_desc;
-      err = usb_host_get_active_config_descriptor(Device_Handle, &config_desc);
-      if (err != ESP_OK) ESP_LOGI("", "usb_host_get_config_desc: %x", err);
-      show_config_desc_full(config_desc);
-      break;
-    /**< A device opened by the client is now gone */
-    case USB_HOST_CLIENT_EVENT_DEV_GONE:
-      ESP_LOGI("", "Device Gone handle: %p", event_msg->dev_gone.dev_hdl);
-      break;
-    default:
-      ESP_LOGI("", "Unknown value %d", event_msg->event);
-      break;
-  }
-}
-
 void setup()
 {
-  const usb_host_config_t config = {
-    .intr_flags = ESP_INTR_FLAG_LEVEL1,
-  };
-  esp_err_t err = usb_host_install(&config);
-  ESP_LOGI("", "usb_host_install: %x", err);
-
-  usb_host_install(&config);
-  const usb_host_client_config_t client_config = {
-    .client_event_callback = _client_event_callback,
-    .callback_arg = Client_Handle,
-    .max_num_event_msg = 5
-  };
-  err = usb_host_client_register(&client_config, &Client_Handle);
-  ESP_LOGI("", "usb_host_client_register: %x", err);
+  usbh_setup(show_config_desc_full);
 }
 
 void loop()
 {
-  uint32_t event_flags;
-
-  esp_err_t err = usb_host_lib_handle_events(HOST_EVENT_TIMEOUT, &event_flags);
-  if (ESP_ERR_TIMEOUT != err) {
-    ESP_LOGI("", "usb_host_list_handle_events: %x flags: %x", err, event_flags);
-  }
-
-  err = usb_host_client_handle_events(Client_Handle, CLIENT_EVENT_TIMEOUT);
-  if (ESP_ERR_TIMEOUT != err) {
-    ESP_LOGI("", "usb_host_client_handle_events: %x", err);
-  }
+  usbh_task();
 }

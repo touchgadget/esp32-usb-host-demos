@@ -156,6 +156,8 @@ void show_config_desc_full(const usb_config_desc_t *config_desc)
 
 void setup()
 {
+  Serial.begin(115200);
+  Serial.setTimeout(0);
   usbh_setup(show_config_desc_full);
 }
 
@@ -163,16 +165,18 @@ void loop()
 {
   usbh_task();
 
-  static bool done = false;   // Do this 1 time to avoid wasting paper
-  if (!done && (PrinterOut != NULL)) {
-    ESP_LOGI("", "Send to printer");
-    const char HELLO[]="Hello from ESP32 S2\n";
-    memcpy(PrinterOut->data_buffer, HELLO, sizeof(HELLO)-1);
-    PrinterOut->num_bytes = sizeof(HELLO)-1; // Exclude the terminating '\0'
+  // ESP32 S2 Typewriter
+  // Read line from serial monitor and write to printer.
+  String aLine = Serial.readStringUntil('\n');  // Read line ending with newline
+
+  if (aLine.length() > 0) {
+    // readStringUntil removes the newline so add it back
+    aLine.concat('\n');
+    PrinterOut->num_bytes = aLine.length();
+    memcpy(PrinterOut->data_buffer, aLine.c_str(), PrinterOut->num_bytes);
     esp_err_t err = usb_host_transfer_submit(PrinterOut);
     if (err != ESP_OK) {
       ESP_LOGI("", "usb_host_transfer_submit Out fail: %x", err);
     }
-    done = true;
   }
 }

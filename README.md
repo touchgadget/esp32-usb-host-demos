@@ -138,7 +138,10 @@ Sample output with additional comments
 Arduino sketch that is just enough to print one line on a USB thermal receipt
 printer. Would be nice to create a subclass from the Arduino stream class so
 it appears similar to a Serial device. And an ESC POS library to print in
-graphics mode, double wide, italics, bold, etc.
+graphics mode, double wide, italics, bold, etc. Lots more work required.
 
-The sketch currently prints 1 line with "Hello from ESP32 S2". This proves USB
-communication is working. Lots more work required.
+~~The sketch currently prints 1 line with "Hello from ESP32 S2".~~
+
+The sketch reads a line from the serial monitor and writes it to the printer.
+This proves USB printer communication is working. This may be the first ESP32
+typewriter.

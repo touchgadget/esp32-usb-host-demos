@@ -58,6 +58,17 @@ A more reliable solution is to make a cable using USB connector breakout
 boards that looks like the USB OTG to USB host cable but with an extra flying
 wire for VBUS.
 
+The following cable was made by cutting a regular micro USB cable in half.
+Using the side with the micro USB connector, separate the 4 wires. Solder
+on Dupont wires also cut in half with matching colors. The other connector
+is a USB Type A receptacle breakout board. The red VBUS wire is not connected
+because the ESP32 S2 board does not provide 5V out on this pin. The long orange
+wire connects 5V out from the ESP32 S2 DevKit board to VBUS.
+
+![USB host cable](./images/esp32_usb_host_cable_1.jpg)
+
+![USB host cable connected to ESP32 S2 DevKitC](./images/esp32_usb_host_cable_2.jpg)
+
 An alternative is to cut open a USB OTG to USB host cable, cut the red power
 wire then solder a flying wire to VBUS.
 

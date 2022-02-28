@@ -68,6 +68,8 @@ void _client_event_callback(const usb_host_client_event_msg_t *event_msg, void *
   }
 }
 
+// Reference: esp-idf/examples/peripherals/usb/host/usb_host_lib/main/usb_host_lib_main.c
+
 void usbh_setup(usb_host_enum_cb_t enumeration_cb)
 {
   const usb_host_config_t config = {
@@ -76,7 +78,6 @@ void usbh_setup(usb_host_enum_cb_t enumeration_cb)
   esp_err_t err = usb_host_install(&config);
   ESP_LOGI("", "usb_host_install: %x", err);
 
-  usb_host_install(&config);
   const usb_host_client_config_t client_config = {
     .is_synchronous = false,
     .max_num_event_msg = 5,

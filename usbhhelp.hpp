@@ -78,9 +78,12 @@ void usbh_setup(usb_host_enum_cb_t enumeration_cb)
 
   usb_host_install(&config);
   const usb_host_client_config_t client_config = {
-    .client_event_callback = _client_event_callback,
-    .callback_arg = Client_Handle,
-    .max_num_event_msg = 5
+    .is_synchronous = false,
+    .max_num_event_msg = 5,
+    .async = {
+        .client_event_callback = _client_event_callback,
+        .callback_arg = Client_Handle
+    }
   };
   err = usb_host_client_register(&client_config, &Client_Handle);
   ESP_LOGI("", "usb_host_client_register: %x", err);
